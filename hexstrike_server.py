@@ -1,21 +1,33 @@
 #!/usr/bin/env python3
 """
-HexStrike AI - Advanced Penetration Testing Framework Server
+Hexstrike 7 PL - Advanced Penetration Testing Framework Server
+Polish Community Fork with Enhanced Security
 
+Based on HexStrike AI v6.0 by m0x4m4 (https://github.com/0x4m4/hexstrike-ai)
 Enhanced with AI-Powered Intelligence & Automation
 🚀 Bug Bounty | CTF | Red Team | Security Research
 
-RECENT ENHANCEMENTS (v6.0):
+HEXSTRIKE 7 PL ENHANCEMENTS:
+🔒 Command injection protection with validation layer
+🔒 API authentication with optional API key requirement
+🔒 Rate limiting (100 requests per 60 seconds default)
+🔒 Whitelist-based tool authorization
+🔒 Parameter sanitization and input validation
+🔒 Improved error handling (specific exceptions)
+⚙️ Environment-based configuration system
+📚 Dual language documentation (PL/EN)
+⚡ Cache size limits and memory optimization
+
+PREVIOUS FEATURES (v6.0):
 ✅ Complete color consistency with reddish hacker theme
-✅ Removed duplicate classes (PythonEnvironmentManager, CVEIntelligenceManager)
 ✅ Enhanced visual output with ModernVisualEngine
-✅ Organized code structure with proper section headers
-✅ 100+ security tools with intelligent parameter optimization
+✅ 150+ security tools with intelligent parameter optimization
 ✅ AI-driven decision engine for tool selection
-✅ Advanced error handling and recovery systems
+✅ 12+ autonomous AI agents
 
 Architecture: Two-script system (hexstrike_server.py + hexstrike_mcp.py)
 Framework: FastMCP integration for AI agent communication
+License: MIT (see LICENSE file for full text and attribution)
 """
 
 import argparse
@@ -48,6 +60,9 @@ import socket
 import urllib.parse
 from dataclasses import dataclass, field
 from enum import Enum
+
+# Hexstrike 7 PL - Security enhancements
+from security_utils import validate_command, sanitize_parameter, parse_command_safely
 from typing import List, Set, Tuple
 import asyncio
 import aiohttp
@@ -97,6 +112,113 @@ app.config['JSON_SORT_KEYS'] = False
 # API Configuration
 API_PORT = int(os.environ.get('HEXSTRIKE_PORT', 8888))
 API_HOST = os.environ.get('HEXSTRIKE_HOST', '127.0.0.1')
+
+# Hexstrike 7 PL - Security Configuration
+ENABLE_COMMAND_VALIDATION = os.environ.get('HEXSTRIKE_VALIDATE_COMMANDS', 'true').lower() == 'true'
+REQUIRE_API_KEY = os.environ.get('HEXSTRIKE_REQUIRE_API_KEY', 'false').lower() == 'true'
+API_KEY = os.environ.get('HEXSTRIKE_API_KEY', '')
+RATE_LIMIT_ENABLED = os.environ.get('HEXSTRIKE_RATE_LIMIT', 'true').lower() == 'true'
+RATE_LIMIT_REQUESTS = int(os.environ.get('HEXSTRIKE_RATE_LIMIT_REQUESTS', '100'))
+RATE_LIMIT_WINDOW = int(os.environ.get('HEXSTRIKE_RATE_LIMIT_WINDOW', '60'))  # seconds
+
+# ============================================================================
+# HEXSTRIKE 7 PL - SECURITY MIDDLEWARE
+# ============================================================================
+
+class RateLimiter:
+    """Simple rate limiter for API endpoints"""
+    def __init__(self, requests_per_window: int, window_seconds: int):
+        self.requests_per_window = requests_per_window
+        self.window_seconds = window_seconds
+        self.requests = {}  # {ip: [(timestamp, )]}
+        self.lock = threading.Lock()
+
+    def is_allowed(self, identifier: str) -> Tuple[bool, Optional[str]]:
+        """Check if request from identifier is allowed"""
+        now = time.time()
+
+        with self.lock:
+            # Clean old requests
+            if identifier in self.requests:
+                self.requests[identifier] = [
+                    ts for ts in self.requests[identifier]
+                    if now - ts < self.window_seconds
+                ]
+            else:
+                self.requests[identifier] = []
+
+            # Check rate limit
+            if len(self.requests[identifier]) >= self.requests_per_window:
+                return False, f"Rate limit exceeded: {self.requests_per_window} requests per {self.window_seconds}s"
+
+            # Add current request
+            self.requests[identifier].append(now)
+            return True, None
+
+# Global rate limiter instance
+rate_limiter = RateLimiter(RATE_LIMIT_REQUESTS, RATE_LIMIT_WINDOW) if RATE_LIMIT_ENABLED else None
+
+def check_rate_limit():
+    """Middleware to check rate limiting"""
+    if not RATE_LIMIT_ENABLED or not rate_limiter:
+        return None
+
+    # Get client identifier (IP address)
+    client_ip = request.remote_addr or 'unknown'
+
+    is_allowed, error_msg = rate_limiter.is_allowed(client_ip)
+    if not is_allowed:
+        logger.warning(f"🚨 Rate limit exceeded for {client_ip}")
+        return jsonify({
+            "error": error_msg,
+            "security_note": "Hexstrike 7 PL - Rate limiting enabled"
+        }), 429
+
+    return None
+
+def check_api_key():
+    """Middleware to check API key authentication"""
+    if not REQUIRE_API_KEY:
+        return None
+
+    # Get API key from header or query parameter
+    provided_key = request.headers.get('X-API-Key') or request.args.get('api_key')
+
+    if not provided_key:
+        logger.warning(f"🚨 Missing API key from {request.remote_addr}")
+        return jsonify({
+            "error": "API key required",
+            "security_note": "Hexstrike 7 PL - API authentication enabled"
+        }), 401
+
+    if provided_key != API_KEY:
+        logger.warning(f"🚨 Invalid API key from {request.remote_addr}")
+        return jsonify({
+            "error": "Invalid API key",
+            "security_note": "Hexstrike 7 PL - API authentication enabled"
+        }), 403
+
+    return None
+
+# Register middleware
+@app.before_request
+def before_request_middleware():
+    """Apply security middleware to all requests"""
+    # Skip security for health check
+    if request.path == '/health':
+        return None
+
+    # Check rate limit
+    rate_limit_response = check_rate_limit()
+    if rate_limit_response:
+        return rate_limit_response
+
+    # Check API key
+    api_key_response = check_api_key()
+    if api_key_response:
+        return api_key_response
+
+    return None
 
 # ============================================================================
 # MODERN VISUAL ENGINE (v2.0 ENHANCEMENT)
@@ -8447,8 +8569,10 @@ class BufferOverflowExploit:
             try:
                 response = sock.recv(1024)
                 print(f"[+] Response: {{response}}")
-            except:
-                pass
+            except socket.timeout:
+                pass  # Timeout is expected
+            except Exception as e:
+                logger.debug(f"Socket recv failed: {str(e)}")
                 
             sock.close()
             print("[+] Exploit sent successfully")
@@ -9099,7 +9223,8 @@ def health_check():
         try:
             result = execute_command(f"which {tool}", use_cache=True)
             tools_status[tool] = result["success"]
-        except:
+        except Exception as e:
+            logger.debug(f"Tool check failed for {tool}: {str(e)}")
             tools_status[tool] = False
 
     all_essential_tools_available = all(tools_status[tool] for tool in essential_tools)
@@ -9122,8 +9247,14 @@ def health_check():
 
     return jsonify({
         "status": "healthy",
-        "message": "HexStrike AI Tools API Server is operational",
-        "version": "6.0.0",
+        "message": "Hexstrike 7 PL - Enhanced Security MCP Server is operational",
+        "version": "7.0.0-PL",
+        "fork_of": "HexStrike AI v6.0 by m0x4m4",
+        "security_features": {
+            "command_validation": ENABLE_COMMAND_VALIDATION,
+            "api_authentication": REQUIRE_API_KEY,
+            "rate_limiting": RATE_LIMIT_ENABLED
+        },
         "tools_status": tools_status,
         "all_essential_tools_available": all_essential_tools_available,
         "total_tools_available": sum(1 for tool, available in tools_status.items() if available),
@@ -9147,6 +9278,16 @@ def generic_command():
             return jsonify({
                 "error": "Command parameter is required"
             }), 400
+
+        # Hexstrike 7 PL - Security validation
+        if ENABLE_COMMAND_VALIDATION:
+            is_valid, error_msg = validate_command(command)
+            if not is_valid:
+                logger.error(f"🚨 BLOCKED invalid command: {command} | Reason: {error_msg}")
+                return jsonify({
+                    "error": f"Command validation failed: {error_msg}",
+                    "security_note": "Hexstrike 7 PL - Enhanced security enabled"
+                }), 403
 
         result = execute_command(command, use_cache=use_cache)
         return jsonify(result)
@@ -16701,6 +16842,16 @@ def execute_command_async():
 
         if not command:
             return jsonify({"error": "Command parameter is required"}), 400
+
+        # Hexstrike 7 PL - Security validation
+        if ENABLE_COMMAND_VALIDATION:
+            is_valid, error_msg = validate_command(command)
+            if not is_valid:
+                logger.error(f"🚨 BLOCKED invalid async command: {command} | Reason: {error_msg}")
+                return jsonify({
+                    "error": f"Command validation failed: {error_msg}",
+                    "security_note": "Hexstrike 7 PL - Enhanced security enabled"
+                }), 403
 
         # Execute command asynchronously
         task_id = enhanced_process_manager.execute_command_async(command, context)
