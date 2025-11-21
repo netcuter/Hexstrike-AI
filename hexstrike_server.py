@@ -67,6 +67,14 @@ from typing import List, Set, Tuple
 import asyncio
 import aiohttp
 from urllib.parse import urljoin, urlparse, parse_qs
+
+# Optional dependencies
+try:
+    import mitmproxy
+    MITMPROXY_AVAILABLE = True
+except ImportError:
+    MITMPROXY_AVAILABLE = False
+    # Logger not yet configured, will warn later
 from bs4 import BeautifulSoup
 import selenium
 from selenium import webdriver
@@ -75,10 +83,12 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, WebDriverException
-import mitmproxy
-from mitmproxy import http as mitmhttp
-from mitmproxy.tools.dump import DumpMaster
-from mitmproxy.options import Options as MitmOptions
+
+# Conditional mitmproxy imports (handled above)
+if MITMPROXY_AVAILABLE:
+    from mitmproxy import http as mitmhttp
+    from mitmproxy.tools.dump import DumpMaster
+    from mitmproxy.options import Options as MitmOptions
 
 # ============================================================================
 # LOGGING CONFIGURATION (MUST BE FIRST)
