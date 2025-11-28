@@ -1,0 +1,20 @@
+[console_scripts]
+asm = pwnlib.commandline.common:deprecated_main
+checksec = pwnlib.commandline.common:main
+constgrep = pwnlib.commandline.common:main
+cyclic = pwnlib.commandline.common:deprecated_main
+debug = pwnlib.commandline.common:deprecated_main
+disablenx = pwnlib.commandline.common:deprecated_main
+disasm = pwnlib.commandline.common:deprecated_main
+elfdiff = pwnlib.commandline.common:deprecated_main
+elfpatch = pwnlib.commandline.common:deprecated_main
+errno = pwnlib.commandline.common:deprecated_main
+hex = pwnlib.commandline.common:deprecated_main
+libcdb = pwnlib.commandline.common:main
+phd = pwnlib.commandline.common:main
+pwn = pwnlib.commandline.main:main
+pwnstrip = pwnlib.commandline.common:main
+scramble = pwnlib.commandline.common:deprecated_main
+shellcraft = pwnlib.commandline.common:main
+template = pwnlib.commandline.common:deprecated_main
+unhex = pwnlib.commandline.common:deprecated_main

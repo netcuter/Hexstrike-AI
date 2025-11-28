@@ -28,6 +28,185 @@ from datetime import datetime
 
 from mcp.server.fastmcp import FastMCP
 
+# ============================================================================
+# SECURE ANONYMIZATION ENGINE
+# ============================================================================
+
+import json
+import re
+from pathlib import Path
+
+SENSITIVE_DIR = Path.home() / ".hexstrike_sensitive"
+MAPPING_FILE = SENSITIVE_DIR / "mapping.json"
+WHITELIST_FILE = SENSITIVE_DIR / "whitelist.txt"
+REAL_TARGETS_FILE = SENSITIVE_DIR / "real_targets.txt"
+LOG_DIR = SENSITIVE_DIR / "logs"
+
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+anon_log_file = LOG_DIR / f"mcp_anon_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+
+anon_logger = logging.getLogger("anonymization")
+anon_handler = logging.FileHandler(anon_log_file)
+anon_handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] %(message)s'))
+anon_logger.addHandler(anon_handler)
+anon_logger.setLevel(logging.INFO)
+
+
+class SecureAnonymizationEngine:
+    """Anonymization engine with external config"""
+    
+    def __init__(self):
+        self.mapping_file = MAPPING_FILE
+        self.whitelist_file = WHITELIST_FILE
+        self.real_targets_file = REAL_TARGETS_FILE
+        self.mapping = {}
+        self.whitelist = set()
+        self.real_targets = set()
+        self.counter = 0
+        self._load_config()
+        
+    def _load_config(self):
+        if self.whitelist_file.exists():
+            with open(self.whitelist_file, 'r') as f:
+                self.whitelist = {line.strip() for line in f if line.strip()}
+            anon_logger.info(f"Loaded {len(self.whitelist)} whitelisted domains")
+        else:
+            self.whitelist = {'127.0.0.1', 'localhost', 'target.test'}
+            
+        if self.real_targets_file.exists():
+            with open(self.real_targets_file, 'r') as f:
+                self.real_targets = {line.strip() for line in f if line.strip()}
+            anon_logger.warning(f"Loaded {len(self.real_targets)} REAL TARGETS (will be anonymized)")
+            for target in self.real_targets:
+                anon_logger.warning(f"  [REAL] {target}")
+        
+        if self.mapping_file.exists():
+            try:
+                with open(self.mapping_file, 'r') as f:
+                    self.mapping = json.load(f)
+                self.counter = len(self.mapping)
+                anon_logger.info(f"Loaded {len(self.mapping)} existing mappings")
+            except:
+                self.mapping = {}
+        else:
+            self.mapping = {}
+    
+    def _save_mapping(self):
+        try:
+            SENSITIVE_DIR.mkdir(parents=True, exist_ok=True)
+            with open(self.mapping_file, 'w') as f:
+                json.dump(self.mapping, f, indent=2)
+            os.chmod(self.mapping_file, 0o600)
+        except Exception as e:
+            anon_logger.error(f"Error saving mapping: {e}")
+    
+    def _is_whitelisted(self, value: str) -> bool:
+        return any(wl in value.lower() for wl in self.whitelist)
+    
+    def _is_real_target(self, value: str) -> bool:
+        return any(target in value.lower() for target in self.real_targets)
+    
+    def anonymize(self, text: str) -> str:
+        if not isinstance(text, str):
+            return text
+        
+        changed = False
+        original = text
+        
+        for match in re.finditer(r'https?://([a-z0-9\-\.]+(?:\.[a-z]{2,})?(?::\d+)?)', text, re.I):
+            domain = match.group(1)
+            full_url = match.group(0)
+            
+            if self._is_whitelisted(domain):
+                continue
+            
+            if self._is_real_target(domain):
+                if domain not in self.mapping:
+                    self.mapping[domain] = f"target{self.counter}.test"
+                    self.counter += 1
+                    changed = True
+                    anon_logger.warning(f"[ANONYMIZE] {domain} -> {self.mapping[domain]}")
+                
+                anon_url = full_url.replace(domain, self.mapping[domain])
+                text = text.replace(full_url, anon_url)
+        
+        for match in re.finditer(r'\b([A-Za-z0-9]{32,})\b', text):
+            token = match.group(1)
+            if not token.isdigit() and token not in self.mapping:
+                self.mapping[token] = f"TOKEN_{self.counter}"
+                self.counter += 1
+                changed = True
+            if token in self.mapping:
+                text = text.replace(token, self.mapping[token])
+        
+        for match in re.finditer(r'\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b', text):
+            ip = match.group(1)
+            if self._is_whitelisted(ip) or ip.startswith(('192.168.', '10.', '172.')):
+                continue
+            if ip not in self.mapping:
+                self.mapping[ip] = f"10.0.{self.counter // 255}.{self.counter % 255}"
+                self.counter += 1
+                changed = True
+            text = text.replace(ip, self.mapping[ip])
+        
+        if changed:
+            self._save_mapping()
+        
+        return text
+    
+    def deanonymize(self, text: str) -> str:
+        if not isinstance(text, str):
+            return text
+        for original, anonymized in self.mapping.items():
+            text = text.replace(anonymized, original)
+        return text
+    
+    def anonymize_dict(self, data):
+        if isinstance(data, dict):
+            result = {}
+            for key, value in data.items():
+                if isinstance(value, str):
+                    result[key] = self.anonymize(value)
+                elif isinstance(value, dict):
+                    result[key] = self.anonymize_dict(value)
+                elif isinstance(value, list):
+                    result[key] = [self.anonymize(v) if isinstance(v, str) else v for v in value]
+                else:
+                    result[key] = value
+            return result
+        return data
+    
+    def deanonymize_dict(self, data):
+        if isinstance(data, dict):
+            result = {}
+            for key, value in data.items():
+                if isinstance(value, str):
+                    result[key] = self.deanonymize(value)
+                elif isinstance(value, dict):
+                    result[key] = self.deanonymize_dict(value)
+                elif isinstance(value, list):
+                    result[key] = [self.deanonymize(v) if isinstance(v, str) else v for v in value]
+                else:
+                    result[key] = value
+            return result
+        return data
+
+
+# Initialize global anonymization engine
+_anon_engine = SecureAnonymizationEngine()
+
+def anonymize_tool_input(data):
+    """Anonimizuje dane PRZED wyslaniem do AI Assistant"""
+    return _anon_engine.anonymize_dict(data)
+
+def deanonymize_tool_output(data):
+    """De-anonimizuje dane PRZED wyslaniem do HexStrike"""
+    return _anon_engine.deanonymize_dict(data)
+
+def reanonymize_result(data):
+    """Re-anonimizuje wyniki PRZED wyslaniem do AI Assistant"""
+    return _anon_engine.anonymize_dict(data)
+
 class HexStrikeColors:
     """Enhanced color palette matching the server's ModernVisualEngine.COLORS"""
 
@@ -218,29 +397,55 @@ class HexStrikeClient:
             return {"error": f"Unexpected error: {str(e)}", "success": False}
 
     def safe_post(self, endpoint: str, json_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Perform a POST request with JSON data.
-
-        Args:
-            endpoint: API endpoint path (without leading slash)
-            json_data: JSON data to send
-
-        Returns:
-            Response data as dictionary
-        """
-        url = f"{self.server_url}/{endpoint}"
-
-        try:
-            logger.debug(f"📡 POST {url} with data: {json_data}")
-            response = self.session.post(url, json=json_data, timeout=self.timeout)
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.RequestException as e:
-            logger.error(f"🚫 Request failed: {str(e)}")
-            return {"error": f"Request failed: {str(e)}", "success": False}
-        except Exception as e:
-            logger.error(f"💥 Unexpected error: {str(e)}")
-            return {"error": f"Unexpected error: {str(e)}", "success": False}
+    """
+    Perform a POST request with JSON data + ANONYMIZATION.
+    
+    Args:
+        endpoint: API endpoint path (without leading slash)
+        json_data: JSON data to send (WILL BE DE-ANONYMIZED before sending to server)
+    
+    Returns:
+        Response data as dictionary (RE-ANONYMIZED before returning)
+    """
+    url = f"{self.server_url}/{endpoint}"
+    
+    try:
+        # Log anonymized data (what AI Assistant sent)
+        anon_logger.info("="*80)
+        anon_logger.info(f"[FROM AI] POST {endpoint}")
+        anon_logger.info(f"Anonymized data: {json.dumps(json_data, indent=2)[:500]}")
+        
+        # DE-ANONYMIZE before sending to HexStrike
+        real_data = deanonymize_tool_output(json_data)
+        
+        anon_logger.warning("="*80)
+        anon_logger.warning("[DEANONYMIZE] Sending to HexStrike:")
+        anon_logger.warning(f"Real data: {json.dumps(real_data, indent=2)[:500]}")
+        anon_logger.warning("="*80)
+        
+        logger.debug(f"📡 POST {url}")
+        
+        # Send to HexStrike with REAL data
+        response = self.session.post(url, json=real_data, timeout=self.timeout)
+        response.raise_for_status()
+        result = response.json()
+        
+        # RE-ANONYMIZE result before returning to AI Assistant
+        anon_result = reanonymize_result(result)
+        
+        anon_logger.warning("="*80)
+        anon_logger.warning("[REANONYMIZE] Returning to AI Assistant:")
+        anon_logger.warning(f"Anonymized result: {json.dumps(anon_result, indent=2)[:500]}")
+        anon_logger.warning("="*80)
+        
+        return anon_result
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f"🚫 Request failed: {str(e)}")
+        return {"error": f"Request failed: {str(e)}", "success": False}
+    except Exception as e:
+        logger.error(f"💥 Unexpected error: {str(e)}")
+        return {"error": f"Unexpected error: {str(e)}", "success": False}
 
     def execute_command(self, command: str, use_cache: bool = True) -> Dict[str, Any]:
         """
@@ -5468,3 +5673,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

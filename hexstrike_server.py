@@ -119,6 +119,12 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.config['JSON_SORT_KEYS'] = False
 
+# HexStrike Tools PATH Configuration
+HEXSTRIKE_TOOLS_BIN = os.path.expanduser("~/hexstrike-tools/bin")
+if os.path.exists(HEXSTRIKE_TOOLS_BIN):
+    os.environ['PATH'] = f"{HEXSTRIKE_TOOLS_BIN}:{os.environ.get('PATH', '')}"
+    logger.info(f"Added HexStrike tools to PATH: {HEXSTRIKE_TOOLS_BIN}")
+
 # API Configuration
 API_PORT = int(os.environ.get('HEXSTRIKE_PORT', 8888))
 API_HOST = os.environ.get('HEXSTRIKE_HOST', '127.0.0.1')
@@ -9231,7 +9237,11 @@ def health_check():
 
     for tool in all_tools:
         try:
-            result = execute_command(f"which {tool}", use_cache=True)
+            # Quietly check if tool exists without verbose logging
+            import subprocess
+            result_code = subprocess.call(f"which {tool} >/dev/null 2>&1", shell=True)
+            result = {"success": result_code == 0}
+            # OLD (verbose): result = execute_command(f"which {tool}", use_cache=True)
             tools_status[tool] = result["success"]
         except Exception as e:
             logger.debug(f"Tool check failed for {tool}: {str(e)}")
