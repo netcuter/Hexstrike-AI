@@ -8,7 +8,7 @@
 
 ## 🔍 O PROJEKCIE:
 
-HexStrike AI to MCP server umożliwiający AI agentom (Claude, GPT, Copilot) autonomiczne uruchamianie 150+ narzędzi cybersecurity.
+HexStrike AI to MCP server umożliwiający AI agentom (GPT, Copilot, inne AI) autonomiczne uruchamianie 150+ narzędzi cybersecurity.
 
 **Upstream:** https://github.com/0x4m4/hexstrike-ai  
 **Fork:** https://github.com/netcuter/Hexstrike-AI

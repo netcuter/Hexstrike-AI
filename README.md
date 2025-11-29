@@ -306,7 +306,7 @@ Hexstrike 7 PL features a multi-agent architecture with autonomous AI agents, in
 
 ```mermaid
 graph TD
-    A[AI Agent - Claude/GPT/Copilot] -->|MCP Protocol| B[Hexstrike 7 PL Server]
+    A[AI Agent - GPT/Copilot/AI Agents] -->|MCP Protocol| B[Hexstrike 7 PL Server]
 
     B --> C[Security Validation Layer]
     B --> D[Intelligent Decision Engine]
@@ -400,9 +400,9 @@ graph TD
 
 ### 🔧 AI Client Integration
 
-#### Claude Desktop / Cursor
+#### MCP Client App / Cursor
 
-Edit `~/.config/Claude/claude_desktop_config.json`:
+Edit `~/.config/mcp-client/mcp_client_config.json`:
 ```json
 {
   "mcpServers": {
