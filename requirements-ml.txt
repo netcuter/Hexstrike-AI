@@ -1,0 +1,16 @@
+# Hexstrike ML Enhancement - Python Dependencies
+
+# Core ML Libraries
+scikit-learn>=1.3.0      # For Gradient Boosting, Random Forest, Isolation Forest
+numpy>=1.24.3            # Numerical computing
+
+# Optional: Advanced ML (not required for basic features)
+# tensorflow>=2.14.0     # For LSTM timing analysis (PHASE 3)
+# gym>=0.26.2            # For Reinforcement Learning fuzzing (PHASE 3)
+# stable-baselines3>=2.1.0  # For RL algorithms (PHASE 3)
+
+# Database
+# (SQLite3 is included in Python standard library - no install needed)
+
+# Utilities
+# requests is already in main requirements.txt
