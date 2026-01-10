@@ -3,3 +3,19 @@ venv/
 *.pyc
 __pycache__/
 *.log
+
+# Backup files
+*.backup
+*.backup_*
+*.ORIGINAL
+*.bak
+
+# Local development
+async_fix.txt
+start_hexstrike.sh
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
