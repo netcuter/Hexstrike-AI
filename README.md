@@ -519,11 +519,6 @@ All modifications and enhancements are licensed under the same MIT License.
 
 <div align="center">
 
-## 🌟 Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=0x4m4/hexstrike-ai&type=Date)](https://star-history.com/#0x4m4/hexstrike-ai&Date)
-
-### **Made with ❤️ by the cybersecurity community**
 
 *Hexstrike 7 PL - Where artificial intelligence meets enhanced cybersecurity*
 
