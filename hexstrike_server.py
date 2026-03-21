@@ -9666,9 +9666,8 @@ def create_summary_report():
         if not data:
             return jsonify({"error": "No data provided"}), 400
 
-        # Create summary report
-        visual_engine = ModernVisualEngine()
-        report = visual_engine.create_summary_report(data)
+        # Create summary report - method is in CVEIntelligenceManager (not ModernVisualEngine)
+        report = cve_intelligence.create_summary_report(data)
 
         return jsonify({
             "success": True,
