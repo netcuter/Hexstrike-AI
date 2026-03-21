@@ -6074,11 +6074,16 @@ class CVEIntelligenceManager:
     def create_summary_report(results: Dict[str, Any]) -> str:
         """Generate a beautiful summary report"""
 
-        total_vulns = len(results.get('vulnerabilities', []))
-        critical_vulns = len([v for v in results.get('vulnerabilities', []) if v.get('severity') == 'critical'])
-        high_vulns = len([v for v in results.get('vulnerabilities', []) if v.get('severity') == 'high'])
-        execution_time = results.get('execution_time', 0)
-        tools_used = results.get('tools_used', [])
+        vulnerabilities = results.get('vulnerabilities', []) or []
+        total_vulns = len(vulnerabilities)
+        critical_vulns = len([v for v in vulnerabilities if isinstance(v, dict) and v.get('severity') == 'critical'])
+        high_vulns = len([v for v in vulnerabilities if isinstance(v, dict) and v.get('severity') == 'high'])
+        try:
+            execution_time = float(results.get('execution_time', 0) or 0)
+        except (ValueError, TypeError):
+            execution_time = 0.0
+        tools_used_raw = results.get('tools_used', []) or []
+        tools_used = [str(t) if not isinstance(t, str) else t for t in tools_used_raw]
 
         report = f"""
 {ModernVisualEngine.COLORS['MATRIX_GREEN']}{ModernVisualEngine.COLORS['BOLD']}╔══════════════════════════════════════════════════════════════════════════════╗
@@ -17430,6 +17435,18 @@ def get_alternative_tools():
 
 # Create the banner after all classes are defined
 BANNER = ModernVisualEngine.create_banner()
+
+# ============================================================================
+# TOOL ANNOTATIONS FOR LLM/CLAUDE CODE (v7 PL) — PR #125 equivalent
+# ============================================================================
+try:
+    from tool_annotations import register_annotations_endpoint
+    register_annotations_endpoint(app)
+    logger.info("📌 Tool Annotations: ENABLED")
+    logger.info("   ✅ GET /api/tools/annotations   — tool info for LLM/Claude Code")
+    logger.info("   ✅ GET /api/tools/workflow-guide — pentest workflow guide")
+except Exception as _ae:
+    logger.warning(f"⚠️  Tool Annotations not loaded: {_ae}")
 
 # ============================================================================
 # PENTEST SESSION MANAGER (v7 PL)
