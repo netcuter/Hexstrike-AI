@@ -17432,6 +17432,21 @@ def get_alternative_tools():
 BANNER = ModernVisualEngine.create_banner()
 
 # ============================================================================
+# PENTEST SESSION MANAGER (v7 PL)
+# ============================================================================
+try:
+    from pentest_session import register_session_endpoints
+    _session_manager, _report_generator = register_session_endpoints(app)
+    logger.info("📋 Pentest Session Manager: ENABLED")
+    logger.info("   ✅ /api/session/create   — nowa sesja pentestowa")
+    logger.info("   ✅ /api/session/list     — lista sesji")
+    logger.info("   ✅ /api/session/<id>/finding  — dodaj finding")
+    logger.info("   ✅ /api/session/<id>/report   — generuj raport markdown")
+    logger.info("   ✅ /api/session/<id>/surface  — mapa attack surface")
+except Exception as _se:
+    logger.warning(f"⚠️  Pentest Session Manager not loaded: {_se}")
+
+# ============================================================================
 # HEXSTRIKE ML ENHANCEMENT INTEGRATION (v7 PL)
 # ============================================================================
 # Initialize ML-powered features: False Positive Filter, Payload Generator, Adaptive Learning

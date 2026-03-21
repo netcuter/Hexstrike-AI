@@ -19,3 +19,17 @@ start_hexstrike.sh
 .idea/
 *.swp
 *.swo
+
+# Pentest Session data - DO NOT commit (contains target data / findings)
+hexstrike_sessions.db
+hexstrike_sessions.db-*
+*.db
+report_*.md
+report_*.html
+
+# Sensitive data
+*.env
+.env*
+secrets.txt
+targets.txt
+credentials*

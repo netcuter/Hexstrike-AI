@@ -7,6 +7,9 @@ Sprawdza czy:
 - Tylko destruktywne komendy są blokowane
 """
 
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from security_utils import validate_command, sanitize_parameter
 
 # Kolory dla outputu
