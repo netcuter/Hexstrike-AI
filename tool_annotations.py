@@ -138,8 +138,10 @@ TOOL_ANNOTATIONS: Dict[str, Dict[str, Any]] = {
         "requires": ["gobuster installed", "wordlist"],
         "output_fields": ["discovered_paths", "status_codes", "sizes"],
         "params": {
-            "target": "Base URL (http://target.com)",
-            "options": "-w /wordlist -x php,html,js -t 50"
+            "url": "Base URL (https://target.com)",
+            "mode": "dir / dns / fuzz / vhost (default: dir)",
+            "wordlist": "/usr/share/dirb/wordlists/common.txt",
+            "additional_args": "-t 30 -x php,html,js -q"
         }
     },
 
