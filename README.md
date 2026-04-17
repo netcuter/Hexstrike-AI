@@ -82,6 +82,14 @@ export HEXSTRIKE_HOST=127.0.0.1
 
 #### 1. Instalacja
 
+**Opcja A: Docker (zalecana / recommended)**
+```bash
+git clone https://github.com/netcuter/Hexstrike-AI.git
+cd Hexstrike-AI
+docker compose up -d
+```
+
+**Opcja B: Manualna**
 ```bash
 # Klonowanie repozytorium
 git clone https://github.com/netcuter/Hexstrike-AI.git
@@ -232,6 +240,14 @@ export HEXSTRIKE_HOST=127.0.0.1
 
 #### 1. Installation
 
+**Option A: Docker (recommended)**
+```bash
+git clone https://github.com/netcuter/Hexstrike-AI.git
+cd Hexstrike-AI
+docker compose up -d
+```
+
+**Option B: Manual**
 ```bash
 # Clone repository
 git clone https://github.com/netcuter/Hexstrike-AI.git

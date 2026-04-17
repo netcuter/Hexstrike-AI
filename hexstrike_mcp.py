@@ -5616,6 +5616,239 @@ def setup_mcp_server(hexstrike_client: HexStrikeClient) -> FastMCP:
 
         return result
 
+    # ========================================================================
+    # MCP PROMPTS — reusable pentest prompt templates
+    # ========================================================================
+
+    @mcp.prompt()
+    def recon_prompt(target: str) -> str:
+        """Full reconnaissance prompt for a target — runs subdomain enum, port scan, web discovery."""
+        return f"""You are an expert penetration tester. Perform a comprehensive reconnaissance on: {target}
+
+Steps:
+1. Run subfinder to discover subdomains
+2. Run nmap -sV -sC on discovered hosts to identify services and versions
+3. Run gobuster dir on any web services found
+4. Run nikto on web services for quick vulnerability check
+5. Analyze results and create a pentest session with findings
+
+Use Hexstrike tools in order. Start with passive recon, then active scanning.
+Target: {target}"""
+
+    @mcp.prompt()
+    def bug_bounty_prompt(target: str, scope: str = "") -> str:
+        """Bug bounty hunting prompt — optimized for finding high-impact vulnerabilities."""
+        scope_info = f"Scope: {scope}" if scope else "Scope: as defined by the program"
+        return f"""You are an experienced bug bounty hunter. Hunt for vulnerabilities on: {target}
+{scope_info}
+
+Priority targets (highest impact first):
+1. SQL Injection — test all input parameters with sqlmap
+2. XSS — fuzz forms and reflected parameters
+3. SSRF — test URL parameters and file upload features
+4. Authentication bypass — test login forms with hydra and manual techniques
+5. Information disclosure — check robots.txt, backup files, error messages
+
+Use nuclei with severity high,critical first for quick wins.
+Document all findings in a pentest session and generate a report at the end."""
+
+    @mcp.prompt()
+    def ctf_prompt(challenge_url: str, challenge_type: str = "web") -> str:
+        """CTF challenge solving prompt — analyzes and solves capture-the-flag challenges."""
+        return f"""You are a CTF expert. Solve this {challenge_type} challenge: {challenge_url}
+
+Approach:
+1. Enumerate the target thoroughly
+2. Identify the vulnerability class (SQLi, XSS, LFI, RCE, crypto, etc.)
+3. Generate appropriate payloads using ML payload generator
+4. Exploit the vulnerability
+5. Retrieve the flag
+
+For web challenges: check source code, cookies, headers, JS files first.
+For binary challenges: use ghidra/gdb for analysis.
+Think step by step and document your approach."""
+
+    @mcp.prompt()
+    def report_prompt(session_id: str) -> str:
+        """Generate a professional pentest report from a completed session."""
+        return f"""Generate a professional penetration testing report for session: {session_id}
+
+Steps:
+1. Retrieve all findings from the session using get_session_findings
+2. Get the attack surface map
+3. Generate the markdown report using generate_session_report
+4. Summarize: total findings, severity breakdown, top 3 critical issues
+5. List remediation priorities in order of CVSS score
+
+Format the executive summary for a non-technical audience.
+Format the technical findings for the development team."""
+
+    @mcp.prompt()
+    def quick_scan_prompt(target: str) -> str:
+        """Quick 5-minute security scan of a target."""
+        return f"""Perform a quick security scan of {target} in 5 minutes.
+
+Run in parallel:
+- nmap -sV -p 80,443,22,21,25,3306,5432,6379,27017 (common ports)
+- nuclei -severity high,critical (known CVEs)
+- gobuster with small wordlist (top 200 paths)
+
+Report: list all open ports, any critical/high vulnerabilities found, quick risk assessment.
+This is a rapid assessment — flag anything that needs deeper investigation."""
+
+    # ========================================================================
+    # MCP RESOURCES — data resources for AI agents
+    # ========================================================================
+
+    @mcp.resource("hexstrike://tools/list")
+    def get_tools_list() -> str:
+        """List of all available Hexstrike security tools with descriptions."""
+        return """# Hexstrike 7 PL — Available Security Tools
+
+## Network Scanning
+- nmap: Port scanner and service detection (use first for any target)
+- rustscan: Ultra-fast port scanner (use before nmap on large networks)
+- masscan: Internet-scale scanner (large IP ranges only)
+
+## Web Discovery
+- gobuster: Directory/file brute-force (params: url, mode, wordlist)
+- ffuf: Web fuzzer with response filtering
+- dirb: Classic directory scanner
+
+## Web Vulnerability Scanning
+- nikto: Web server vulnerability scanner
+- nuclei: Template-based CVE scanner (9000+ templates)
+- sqlmap: SQL injection detection and exploitation
+- wpscan: WordPress security scanner
+
+## Subdomain/DNS
+- subfinder: Passive subdomain discovery
+- amass: Comprehensive attack surface mapping
+
+## Password Attacks
+- hydra: Online brute-force (SSH, FTP, HTTP, SMB)
+- john: Offline hash cracking
+- hashcat: GPU-accelerated hash cracking
+
+## Windows/AD
+- enum4linux: SMB/NetBIOS enumeration
+- smbmap: SMB share access checker
+- netexec: Credential testing across Windows networks
+
+## Cloud Security
+- prowler: AWS/Azure/GCP security audit
+- trivy: Container and IaC vulnerability scanner
+
+## AI-Powered
+- analyze_target: AI target analysis + tool recommendations
+- smart_scan: Fully autonomous AI-driven pentest
+- generate_payloads: ML-powered payload generation (XSS/SQLi/LFI WAF bypass)
+
+## Session Management (v7 PL)
+- create_pentest_session: Create persistent pentest session
+- add_finding_to_session: Add finding with auto-CVSS scoring
+- generate_session_report: Generate markdown pentest report
+
+## Wordlist Paths
+- /usr/share/dirb/wordlists/common.txt (common web paths)
+- /usr/share/dirb/wordlists/big.txt (extended web paths)
+- /home/nc/hexstrike-tools/wordlists/common.txt (custom wordlist)
+"""
+
+    @mcp.resource("hexstrike://workflow/pentest")
+    def get_pentest_workflow() -> str:
+        """Step-by-step penetration testing workflow guide."""
+        return """# Hexstrike 7 PL — Pentest Workflow
+
+## Phase 1: Planning
+1. create_pentest_session(target, name, scope)
+2. analyze_target(target) → get AI recommendations
+
+## Phase 2: Recon (low risk)
+3. subfinder(target) → passive subdomain discovery
+4. nmap(target, "-sV -sC -T4") → port/service scan
+5. add_recon_to_session(session_id, "ports", nmap_results)
+
+## Phase 3: Enumeration (medium risk)
+6. gobuster(url=target, mode="dir") → web directories
+7. nikto(target) → web server check
+8. nuclei(target, "-severity high,critical") → CVE scan
+
+## Phase 4: Exploitation
+9. sqlmap(url) → SQL injection
+10. hydra → brute force if credentials needed
+11. exploit_generate(cve_id) → PoC from CVE
+
+## Phase 5: Reporting
+12. add_finding_to_session() for each vulnerability found
+13. generate_session_report(session_id) → markdown report
+
+## Risk Levels
+- LOW: subfinder, analyze_target, cve_monitor
+- MEDIUM: nmap, gobuster, nikto, nuclei
+- HIGH: sqlmap, hydra, netexec, masscan
+- CRITICAL: exploit_generate, metasploit
+"""
+
+    @mcp.resource("hexstrike://workflow/bugbounty")
+    def get_bugbounty_workflow() -> str:
+        """Bug bounty hunting workflow optimized for high-impact findings."""
+        return """# Hexstrike 7 PL — Bug Bounty Workflow
+
+## Quick Wins (first 30 minutes)
+1. subfinder → find all subdomains
+2. nmap on each subdomain → open ports
+3. nuclei -severity critical,high → instant CVE hits
+4. check for exposed admin panels, default creds
+
+## Deep Testing (hours 1-4)
+5. gobuster on all web apps → hidden paths
+6. sqlmap on all forms and parameters
+7. ffuf for parameter fuzzing
+8. Check for SSRF in URL parameters
+
+## High-Value Targets
+- /admin, /api, /graphql, /.git, /backup
+- Login forms → SQLi + brute force
+- File upload → RCE attempts
+- JWT tokens → jwt_analyzer
+
+## Reporting
+- Use pentest session to track all findings
+- CVSS auto-calculated per finding type
+- Generate report for bug bounty submission
+"""
+
+    @mcp.resource("hexstrike://cvss/reference")
+    def get_cvss_reference() -> str:
+        """CVSS score reference for common vulnerability types."""
+        return """# CVSS Score Reference — Hexstrike 7 PL
+
+| Vulnerability Type | CVSS Score | Severity |
+|-------------------|------------|----------|
+| SQL Injection | 9.8 | CRITICAL |
+| Remote Code Execution | 9.8 | CRITICAL |
+| Command Injection | 9.8 | CRITICAL |
+| Default Credentials | 8.8 | HIGH |
+| SSRF | 8.8 | HIGH |
+| XXE | 8.6 | HIGH |
+| Path Traversal / LFI | 7.5 | HIGH |
+| Weak Credentials | 7.5 | HIGH |
+| Outdated Software | 7.5 | HIGH |
+| CSRF | 6.5 | MEDIUM |
+| IDOR | 6.5 | MEDIUM |
+| XSS (Reflected) | 6.1 | MEDIUM |
+| Open Redirect | 6.1 | MEDIUM |
+| Unencrypted Traffic | 5.9 | MEDIUM |
+| Information Disclosure | 5.3 | MEDIUM |
+| Exposed Service | 5.3 | MEDIUM |
+| Missing Security Headers | 5.3 | MEDIUM |
+| Open Port | 3.7 | LOW |
+
+Auto-CVSS is applied when adding findings to pentest sessions.
+Override with explicit cvss_score parameter if needed.
+"""
+
     return mcp
 
 def parse_args():

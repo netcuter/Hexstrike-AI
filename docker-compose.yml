@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  hexstrike:
+    build: .
+    ports:
+      - "8888:8888"
+    environment:
+      - HEXSTRIKE_VALIDATE_COMMANDS=true
+      - HEXSTRIKE_REQUIRE_API_KEY=false
+      - HEXSTRIKE_RATE_LIMIT=true
+      - HEXSTRIKE_ML_ENABLED=true
+    volumes:
+      - hexstrike_data:/root/.hexstrike
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8888/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  hexstrike_data:
