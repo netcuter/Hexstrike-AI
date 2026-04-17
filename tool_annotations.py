@@ -732,7 +732,7 @@ def get_workflow_guide() -> str:
         Markdown string z przewodnikiem / Markdown guide
     """
     return """
-# Hexstrike 7 PL - Workflow Guide for Claude Code
+# Hexstrike 7 PL - Workflow Guide for AI Agents
 
 ## Typowy workflow pentestowy / Typical Pentest Workflow
 
@@ -773,7 +773,7 @@ def get_workflow_guide() -> str:
 All endpoints: POST with JSON body to http://localhost:8888
 Authentication: optional API key in X-API-Key header
 
-## Claude Code usage example / Przykład użycia z Claude Code
+## Usage example / Przykład użycia
 
 ```bash
 # 1. Utwórz sesję

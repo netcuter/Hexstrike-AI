@@ -9321,6 +9321,32 @@ def generic_command():
                     "security_note": "Hexstrike 7 PL - Enhanced security enabled"
                 }), 403
 
+        # Guardrails: scope check + destructive confirmation
+        try:
+            if GUARDRAILS_ENABLED:
+                session_id = params.get("session_id")
+                target     = params.get("target", "")
+                tool_name  = params.get("tool", command.split()[0] if command else "")
+
+                # Destructive tier confirmation
+                confirmed, conf_err = check_destructive_confirmation(tool_name, request.headers)
+                if not confirmed:
+                    return jsonify({"error": conf_err, "tier": "destructive"}), 403
+
+                # Scope check (only if session_id provided)
+                if session_id and target:
+                    allowed, reason, tier = validate_target_against_session(
+                        session_id, target, tool_name, command
+                    )
+                    if not allowed:
+                        return jsonify({
+                            "error": f"Scope violation: {reason}",
+                            "tier": tier,
+                            "guardrails": True
+                        }), 403
+        except Exception as _gr_err:
+            logger.debug(f"Guardrails check skipped: {_gr_err}")
+
         result = execute_command(command, use_cache=use_cache)
         return jsonify(result)
     except Exception as e:
@@ -17436,13 +17462,13 @@ def get_alternative_tools():
 BANNER = ModernVisualEngine.create_banner()
 
 # ============================================================================
-# TOOL ANNOTATIONS FOR LLM/CLAUDE CODE (v7 PL) — PR #125 equivalent
+# TOOL ANNOTATIONS FOR LLM/AI AGENTS (v7 PL) — PR #125 equivalent
 # ============================================================================
 try:
     from tool_annotations import register_annotations_endpoint
     register_annotations_endpoint(app)
     logger.info("📌 Tool Annotations: ENABLED")
-    logger.info("   ✅ GET /api/tools/annotations   — tool info for LLM/Claude Code")
+    logger.info("   ✅ GET /api/tools/annotations   — tool info for LLM/AI agents")
     logger.info("   ✅ GET /api/tools/workflow-guide — pentest workflow guide")
 except Exception as _ae:
     logger.warning(f"⚠️  Tool Annotations not loaded: {_ae}")
@@ -17461,6 +17487,20 @@ try:
     logger.info("   ✅ /api/session/<id>/surface  — mapa attack surface")
 except Exception as _se:
     logger.warning(f"⚠️  Pentest Session Manager not loaded: {_se}")
+
+# ============================================================================
+# GUARDRAILS LAYER (v7 PL) — scope enforcement + blast-radius control
+# ============================================================================
+try:
+    from guardrails import (
+        register_guardrails, validate_target_against_session,
+        audit_logger as _audit_logger, kill_switch as _kill_switch,
+        check_destructive_confirmation, GUARDRAILS_ENABLED
+    )
+    register_guardrails(app)
+except Exception as _ge:
+    logger.warning(f"⚠️  Guardrails not loaded: {_ge}")
+    GUARDRAILS_ENABLED = False
 
 # ============================================================================
 # HEXSTRIKE ML ENHANCEMENT INTEGRATION (v7 PL)
