@@ -11,6 +11,7 @@
 [![Security](https://img.shields.io/badge/Security-Enhanced-brightgreen.svg)](https://github.com/netcuter/Hexstrike-AI)
 [![Version](https://img.shields.io/badge/Version-7.0.0_PL-orange.svg)](https://github.com/netcuter/Hexstrike-AI)
 [![Original](https://img.shields.io/badge/Based_on-HexStrike_v6.0-red.svg)](https://github.com/0x4m4/hexstrike-ai)
+[![MCP Badge](https://lobehub.com/badge/mcp-full/netcuter-hexstrike-ai?theme=light)](https://lobehub.com/mcp/netcuter-hexstrike-ai)
 
 **Advanced AI-powered penetration testing MCP framework with 150+ security tools, 12+ autonomous AI agents, and enhanced security features**
 
