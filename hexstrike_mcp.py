@@ -5696,6 +5696,45 @@ Run in parallel:
 Report: list all open ports, any critical/high vulnerabilities found, quick risk assessment.
 This is a rapid assessment — flag anything that needs deeper investigation."""
 
+    @mcp.prompt()
+    def scoped_pentest_prompt(target: str, scope: str,
+                              tester: str = "Hexstrike AI") -> str:
+        """Safe scoped pentest workflow using Guardrails — for commercial engagements."""
+        return f"""Run a SCOPED pentest against {target} — DO NOT exceed scope under any circumstance.
+
+Authorized scope (enforced by Guardrails layer):
+{scope}
+
+Any target outside this scope will be REJECTED with HTTP 403. This is enforced by the server — do not attempt workarounds.
+
+Workflow:
+
+1. Create session with scope:
+   POST /api/session/create
+   {{"target": "{target}", "scope": {scope!r}, "tester": "{tester}"}}
+   → save returned session_id for all subsequent calls
+
+2. Pass session_id + target in EVERY command call:
+   POST /api/command
+   {{"command": "...", "session_id": "<id>", "target": "<target>", "tool": "<tool>"}}
+
+3. Respect blast-radius tiers:
+   - SAFE tools (subfinder, whois, amass): run freely
+   - INTRUSIVE tools (nmap, nikto, gobuster): run only on authorized targets
+   - DESTRUCTIVE tools (sqlmap, hydra, metasploit): ALSO add header
+     X-Hexstrike-Confirm-Destructive: yes
+     AND explain to the user WHY escalation is needed before doing so
+
+4. If anything breaks target availability — hit the kill switch IMMEDIATELY:
+   POST /api/session/<id>/kill
+
+5. At the end, generate the report (Methodology section auto-included):
+   GET /api/session/<id>/report
+
+Record every finding via POST /api/session/<id>/finding — they feed into the executive summary and CVSS scoring.
+
+The audit trail is visible to the client — every scope violation shows up as a RED flag in the report. Stay in scope."""
+
     # ========================================================================
     # MCP RESOURCES — data resources for AI agents
     # ========================================================================

@@ -56,6 +56,19 @@
 - Lepsza organizacja kodu
 - Konfiguracja przez environment variables
 
+#### 🛡️ **Guardrails Layer — Scope Enforcement & Blast-Radius Control:**
+
+Warstwa guardrails przekształca Hexstrike z narzędzia hobby-tool w platformę
+gotową do autonomicznych engagementów (bug bounty, MSSP, pentest-as-a-service).
+
+- ✅ **Scope Validator** — każde wywołanie sprawdzane przeciwko scope sesji (CIDR, wildcard, regex). Wywołania out-of-scope → HTTP 403 + audit log
+- ✅ **Blast-Radius Tiers** — narzędzia podzielone na `safe` (recon), `intrusive` (scanning), `destructive` (exploitation). Tier `destructive` wymaga nagłówka `X-Hexstrike-Confirm-Destructive: yes`
+- ✅ **Kill Switch per sesja** — `POST /api/session/<id>/kill` — natychmiastowy SIGTERM wszystkich procesów sesji
+- ✅ **Audit Trail** — każde wywołanie, naruszenie scope, eskalacja tier-u logowane → automatycznie w raporcie jako sekcja Methodology (ISO 27001 / PCI DSS compliance)
+- ✅ **Per-target Rate Limiting** — chroni cele przed przeciążeniem (5 concurrent / 10 req/s domyślnie)
+
+Przykład scope: `192.168.1.0/24`, `*.example.com`, `r:.*\.internal\.corp$`
+
 ### 🔒 Konfiguracja Bezpieczeństwa
 
 Hexstrike 7 PL wprowadza nowe opcje konfiguracyjne przez zmienne środowiskowe:
@@ -213,6 +226,19 @@ Wszystkie prawa do oryginalnego dzieła należą do m0x4m4.
 - Cache with size limits (prevents uncontrolled memory growth)
 - Better code organization
 - Configuration via environment variables
+
+#### 🛡️ **Guardrails Layer — Scope Enforcement & Blast-Radius Control:**
+
+The guardrails layer transforms Hexstrike from a hobby-tool into a platform
+ready for autonomous engagements (bug bounty, MSSP, pentest-as-a-service).
+
+- ✅ **Scope Validator** — every call validated against session scope (CIDR, wildcard, regex). Out-of-scope calls → HTTP 403 + audit log
+- ✅ **Blast-Radius Tiers** — tools classified as `safe` (recon), `intrusive` (scanning), `destructive` (exploitation). The `destructive` tier requires header `X-Hexstrike-Confirm-Destructive: yes`
+- ✅ **Kill Switch per session** — `POST /api/session/<id>/kill` — instant SIGTERM for all session processes
+- ✅ **Audit Trail** — every call, scope violation, tier escalation logged → auto-included in report as Methodology section (ISO 27001 / PCI DSS compliance)
+- ✅ **Per-target Rate Limiting** — protects targets from overload (5 concurrent / 10 req/s default)
+
+Example scope: `192.168.1.0/24`, `*.example.com`, `r:.*\.internal\.corp$`
 
 ### 🔒 Security Configuration
 
