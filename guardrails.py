@@ -337,8 +337,10 @@ class AuditLogger:
                 f"| {e.get('target') or '-'} | {e.get('tier') or '-'} "
                 f"| {e.get('result') or '-'} |"
             )
-        if any(e['event'] == 'scope_violation' for e in entries):
-            lines.append("\n> ⚠️ Scope violations detected — see VIOLATION entries above.")
+        violations = [e['event'] for e in entries if e.get('result') == 'BLOCKED']
+        if violations:
+            kinds = sorted(set(violations))
+            lines.append(f"\n> ⚠️ Guardrail blocks detected ({', '.join(kinds)}) — see BLOCKED entries above.")
         return "\n".join(lines)
 
 

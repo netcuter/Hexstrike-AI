@@ -129,6 +129,10 @@ if os.path.exists(HEXSTRIKE_TOOLS_BIN):
 API_PORT = int(os.environ.get('HEXSTRIKE_PORT', 8888))
 API_HOST = os.environ.get('HEXSTRIKE_HOST', '127.0.0.1')
 
+# Guardrail enforcement: fail-closed by default. If the guardrail middleware itself errors,
+# tool execution is refused (503) rather than silently allowed. Override only for debug.
+GUARDRAIL_FAIL_CLOSED = os.environ.get('HEXSTRIKE_GUARDRAIL_FAIL_CLOSED', 'true').lower() == 'true'
+
 # Hexstrike 7 PL - Security Configuration
 # Command validation: Enabled by default - blocks only destructive operations (rm -rf /, mkfs, fork bomb)
 # No whitelist - allows custom tools, pipes, command chaining for pentesting
@@ -241,6 +245,77 @@ def before_request_middleware():
     if api_key_response:
         return api_key_response
 
+    # Scope + tier enforcement for /api/tools/*
+    # Skipped if session_id absent (advisory mode preserved for sessionless calls).
+    guardrails_response = _enforce_guardrails_for_tool_call()
+    if guardrails_response:
+        return guardrails_response
+
+    return None
+
+
+def _enforce_guardrails_for_tool_call():
+    """Block /api/tools/* requests that violate session scope or skip destructive confirmation."""
+    if not globals().get('GUARDRAILS_ENABLED', False):
+        return None
+    if not request.path.startswith('/api/tools/'):
+        return None
+    try:
+        data = request.get_json(silent=True) or {}
+        session_id = data.get('session_id')
+        if not session_id:
+            return None  # no session → no enforcement (advisory mode)
+
+        target = data.get('target') or data.get('url') or data.get('host') or ''
+        if not target:
+            return None  # nothing to validate
+
+        tool = request.path.rsplit('/', 1)[-1]
+        command = data.get('command') or f"{tool} {data.get('options', '')} {target}".strip()
+
+        allowed, reason, tier = validate_target_against_session(
+            session_id, target, tool=tool, command=command
+        )
+        if not allowed:
+            logger.warning(f"🚫 Scope violation blocked: tool={tool} target={target} session={session_id}")
+            return jsonify({
+                "error": "Scope violation",
+                "reason": reason,
+                "tier": tier,
+                "session_id": session_id,
+                "target": target,
+                "tool": tool,
+            }), 403
+
+        if tier == 'destructive':
+            confirmed, conf_msg = check_destructive_confirmation(tool, request.headers)
+            if not confirmed:
+                logger.warning(f"🚫 Destructive tier without confirmation: tool={tool} target={target}")
+                try:
+                    _audit_logger.log(
+                        session_id=session_id, event="destructive_unconfirmed",
+                        tool=tool, target=target, tier=tier,
+                        result="BLOCKED", detail=conf_msg,
+                    )
+                except Exception as audit_err:
+                    logger.error(f"audit log write failed for destructive block: {audit_err}")
+                return jsonify({
+                    "error": "Destructive tier requires confirmation header",
+                    "reason": conf_msg,
+                    "tier": tier,
+                    "required_header": "X-Hexstrike-Confirm-Destructive: yes",
+                    "tool": tool,
+                    "target": target,
+                }), 403
+    except Exception as e:
+        logger.error(f"💥 Guardrail enforcement error: {e}")
+        if GUARDRAIL_FAIL_CLOSED:
+            return jsonify({
+                "error": "Guardrail enforcement unavailable; refusing tool call (fail-closed)",
+                "detail": str(e),
+                "override": "set HEXSTRIKE_GUARDRAIL_FAIL_CLOSED=false to fail-open",
+            }), 503
+        return None
     return None
 
 # ============================================================================
@@ -5698,7 +5773,7 @@ class PerformanceDashboard:
 
 # Global instances
 tech_detector = TechnologyDetector()
-rate_limiter = RateLimitDetector()
+target_rate_detector = RateLimitDetector()
 failure_recovery = FailureRecoverySystem()
 performance_monitor = PerformanceMonitor()
 parameter_optimizer = ParameterOptimizer()
@@ -17601,4 +17676,4 @@ if __name__ == "__main__":
         if line.strip():
             logger.info(line)
 
-    app.run(host="0.0.0.0", port=API_PORT, debug=DEBUG_MODE)
+    app.run(host=API_HOST, port=API_PORT, debug=DEBUG_MODE)
