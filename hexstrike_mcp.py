@@ -397,55 +397,55 @@ class HexStrikeClient:
             return {"error": f"Unexpected error: {str(e)}", "success": False}
 
     def safe_post(self, endpoint: str, json_data: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Perform a POST request with JSON data + ANONYMIZATION.
-    
-    Args:
-        endpoint: API endpoint path (without leading slash)
-        json_data: JSON data to send (WILL BE DE-ANONYMIZED before sending to server)
-    
-    Returns:
-        Response data as dictionary (RE-ANONYMIZED before returning)
-    """
-    url = f"{self.server_url}/{endpoint}"
-    
-    try:
-        # Log anonymized data (what AI Assistant sent)
-        anon_logger.info("="*80)
-        anon_logger.info(f"[FROM AI] POST {endpoint}")
-        anon_logger.info(f"Anonymized data: {json.dumps(json_data, indent=2)[:500]}")
-        
-        # DE-ANONYMIZE before sending to HexStrike
-        real_data = deanonymize_tool_output(json_data)
-        
-        anon_logger.warning("="*80)
-        anon_logger.warning("[DEANONYMIZE] Sending to HexStrike:")
-        anon_logger.warning(f"Real data: {json.dumps(real_data, indent=2)[:500]}")
-        anon_logger.warning("="*80)
-        
-        logger.debug(f"📡 POST {url}")
-        
-        # Send to HexStrike with REAL data
-        response = self.session.post(url, json=real_data, timeout=self.timeout)
-        response.raise_for_status()
-        result = response.json()
-        
-        # RE-ANONYMIZE result before returning to AI Assistant
-        anon_result = reanonymize_result(result)
-        
-        anon_logger.warning("="*80)
-        anon_logger.warning("[REANONYMIZE] Returning to AI Assistant:")
-        anon_logger.warning(f"Anonymized result: {json.dumps(anon_result, indent=2)[:500]}")
-        anon_logger.warning("="*80)
-        
-        return anon_result
-        
-    except requests.exceptions.RequestException as e:
-        logger.error(f"🚫 Request failed: {str(e)}")
-        return {"error": f"Request failed: {str(e)}", "success": False}
-    except Exception as e:
-        logger.error(f"💥 Unexpected error: {str(e)}")
-        return {"error": f"Unexpected error: {str(e)}", "success": False}
+        """
+        Perform a POST request with JSON data + ANONYMIZATION.
+
+        Args:
+            endpoint: API endpoint path (without leading slash)
+            json_data: JSON data to send (WILL BE DE-ANONYMIZED before sending to server)
+
+        Returns:
+            Response data as dictionary (RE-ANONYMIZED before returning)
+        """
+        url = f"{self.server_url}/{endpoint}"
+
+        try:
+            # Log anonymized data (what AI Assistant sent)
+            anon_logger.info("="*80)
+            anon_logger.info(f"[FROM AI] POST {endpoint}")
+            anon_logger.info(f"Anonymized data: {json.dumps(json_data, indent=2)[:500]}")
+
+            # DE-ANONYMIZE before sending to HexStrike
+            real_data = deanonymize_tool_output(json_data)
+
+            anon_logger.warning("="*80)
+            anon_logger.warning("[DEANONYMIZE] Sending to HexStrike:")
+            anon_logger.warning(f"Real data: {json.dumps(real_data, indent=2)[:500]}")
+            anon_logger.warning("="*80)
+
+            logger.debug(f"📡 POST {url}")
+
+            # Send to HexStrike with REAL data
+            response = self.session.post(url, json=real_data, timeout=self.timeout)
+            response.raise_for_status()
+            result = response.json()
+
+            # RE-ANONYMIZE result before returning to AI Assistant
+            anon_result = reanonymize_result(result)
+
+            anon_logger.warning("="*80)
+            anon_logger.warning("[REANONYMIZE] Returning to AI Assistant:")
+            anon_logger.warning(f"Anonymized result: {json.dumps(anon_result, indent=2)[:500]}")
+            anon_logger.warning("="*80)
+
+            return anon_result
+
+        except requests.exceptions.RequestException as e:
+            logger.error(f"🚫 Request failed: {str(e)}")
+            return {"error": f"Request failed: {str(e)}", "success": False}
+        except Exception as e:
+            logger.error(f"💥 Unexpected error: {str(e)}")
+            return {"error": f"Unexpected error: {str(e)}", "success": False}
 
     def execute_command(self, command: str, use_cache: bool = True) -> Dict[str, Any]:
         """
